@@ -8,7 +8,7 @@ ENV NEXT_PUBLIC_BASE_PATH=/ui/v2/login \
     NX_DAEMON=false \
     NX_NO_CLOUD=true \
     NODE_OPTIONS=--max-old-space-size=4096
-RUN touch apps/login/.env && pnpm exec nx run @zitadel/login:build
+RUN sh apps/login/scripts/build-from-source.sh
 
 FROM node:24-alpine
 WORKDIR /app
