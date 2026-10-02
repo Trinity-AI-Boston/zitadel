@@ -1,9 +1,11 @@
 import { DynamicTheme } from "@/components/dynamic-theme";
 import { RegisterFormIDPIncomplete } from "@/components/register-form-idp-incomplete";
 import { Translated } from "@/components/translated";
+import { isCskRegistration } from "@/lib/csk-entra";
 import { getServiceConfig } from "@/lib/service-url";
 import { getBrandingSettings } from "@/lib/zitadel";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 /**
  * Complete registration page - shown when manual user registration is required
@@ -14,6 +16,11 @@ export default async function CompleteRegistrationPage(props: {
 }) {
   const searchParams = await props.searchParams;
   const { id, token, requestId, organization, idpId, idpUserId, idpUserName, givenName, familyName, email } = searchParams;
+
+  // Old registration links must not expose the manual form for CSK either.
+  if (isCskRegistration(organization, idpId)) {
+    redirect("/idp/saml/failure");
+  }
 
   const _headers = await headers();
   const { serviceConfig } = getServiceConfig(_headers);

@@ -1,5 +1,6 @@
 "use server";
 
+import { CSK_ENTRA_ERROR, CSK_ENTRA_PROVIDER_ID, CSK_ORGANIZATION_ID, isCskRegistration, readCskEntraProfile } from "@/lib/csk-entra";
 import { getSessionCookieById } from "@/lib/cookies";
 import { isClassifiedError } from "@/lib/grpc/interceptors/error-classification";
 import { createLogger } from "@/lib/logger";
@@ -812,6 +813,94 @@ export async function processIDPCallback({
     }
 
     const options = idp?.config?.options;
+
+    // CSK is provisioned exclusively from the server-validated Entra assertion.
+    // Never fall back to a profile form, email auto-linking, or client-supplied names.
+    if (isCskRegistration(organization, idpInformation.idpId)) {
+      try {
+        if (
+          provider !== "saml" ||
+          idpInformation.idpId !== CSK_ENTRA_PROVIDER_ID ||
+          idp.details?.resourceOwner !== CSK_ORGANIZATION_ID ||
+          sessionId
+        ) {
+          throw new Error("Invalid CSK provisioning context");
+        }
+        const settings = await getLoginSettings({
+          serviceConfig,
+          organization: CSK_ORGANIZATION_ID,
+        });
+        const active = await getActiveIdentityProviders({
+          serviceConfig,
+          orgId: CSK_ORGANIZATION_ID,
+        });
+        if (!settings?.allowExternalIdp || !active.identityProviders?.some((p) => p.id === CSK_ENTRA_PROVIDER_ID)) {
+          throw new Error("CSK external login is disabled");
+        }
+        const profile = readCskEntraProfile(idpInformation.idpId, organization, idpInformation.rawInformation);
+        const human = {
+          profile: {
+            givenName: profile.givenName,
+            familyName: profile.familyName,
+          },
+          email: {
+            email: profile.email,
+            verification: { case: "isVerified" as const, value: true },
+          },
+        };
+        let userId = intent.userId;
+        if (userId) {
+          const existing = await getUserByID({ serviceConfig, userId });
+          if (existing.user?.details?.resourceOwner !== CSK_ORGANIZATION_ID) {
+            throw new Error("CSK user organization mismatch");
+          }
+          if (options?.isAutoUpdate) {
+            await updateUser({
+              serviceConfig,
+              request: create(UpdateUserRequestSchema, {
+                userId,
+                userType: { case: "human", value: human },
+              }),
+            });
+          }
+        } else {
+          if (!options?.isAutoCreation || !settings.allowRegister || !idpInformation.userId) {
+            throw new Error("CSK automatic provisioning is unavailable");
+          }
+          const created = await createUser({
+            serviceConfig,
+            request: create(CreateUserRequestSchema, {
+              organizationId: CSK_ORGANIZATION_ID,
+              username: profile.email,
+              userType: {
+                case: "human",
+                value: {
+                  ...human,
+                  idpLinks: [
+                    {
+                      idpId: idpInformation.idpId,
+                      userId: idpInformation.userId,
+                      userName: idpInformation.userName || profile.email,
+                    },
+                  ],
+                },
+              },
+            }),
+          });
+          userId = created.id;
+        }
+        return await createNewSessionFromIdpIntent({
+          userId,
+          idpIntent: { idpIntentId: id, idpIntentToken: token },
+          requestId,
+          organization: CSK_ORGANIZATION_ID,
+        });
+      } catch {
+        // Do not log the assertion, intent token, or personal profile values.
+        logger.error("CSK Entra automatic provisioning or session creation failed");
+        return { error: CSK_ENTRA_ERROR };
+      }
+    }
 
     // Build base redirect params
     const buildRedirectParams = (additionalParams?: Record<string, string>, includeToken: boolean = false) => {
