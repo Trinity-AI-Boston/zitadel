@@ -1,3 +1,5 @@
+import { isCskRegistration } from "@/lib/csk-entra";
+import { redirect } from "next/navigation";
 import { Alert } from "@/components/alert";
 import { DynamicTheme } from "@/components/dynamic-theme";
 import { RegisterForm } from "@/components/register-form";
@@ -35,6 +37,12 @@ export default async function Page(props: { searchParams: Promise<Record<string 
     if (org) {
       organization = org.id;
     }
+  }
+
+  if (isCskRegistration(organization)) {
+    const params = new URLSearchParams({ organization: organization! });
+    if (requestId) params.set("requestId", requestId);
+    redirect(`/login?${params}`);
   }
 
   const legal = await getLegalAndSupportSettings({ serviceConfig, organization });

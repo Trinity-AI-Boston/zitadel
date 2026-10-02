@@ -1,5 +1,7 @@
 "use server";
 
+import { CSK_ENTRA_ERROR, isCskRegistration } from "@/lib/csk-entra";
+
 import { createSessionAndUpdateCookie, createSessionForIdpAndUpdateCookie } from "@/lib/server/cookie";
 import { addHumanUser, addIDPLink, getLoginSettings, getUserByID, listAuthenticationMethodTypes } from "@/lib/zitadel";
 import { Code, ConnectError, Duration, create } from "@zitadel/client";
@@ -62,6 +64,7 @@ export type RegisterUserResponse = {
 export async function registerUser(
   command: RegisterUserCommand,
 ): Promise<{ error: string } | { redirect: string } | { samlData: { url: string; fields: Record<string, string> } }> {
+  if (isCskRegistration(command.organization)) return { error: CSK_ENTRA_ERROR };
   const t = await getTranslations("register");
   const _headers = await headers();
   const { serviceConfig } = getServiceConfig(_headers);
@@ -212,6 +215,7 @@ export type registerUserAndLinkToIDPResponse = {
 export async function registerUserAndLinkToIDP(
   command: RegisterUserAndLinkToIDPommand,
 ): Promise<{ error: string } | { redirect: string } | { samlData: { url: string; fields: Record<string, string> } }> {
+  if (isCskRegistration(command.organization, command.idpId)) return { error: CSK_ENTRA_ERROR };
   const t = await getTranslations("register");
 
   const _headers = await headers();

@@ -1,3 +1,4 @@
+import { CSK_ENTRA_ERROR, CSK_ENTRA_PROVIDER_ID, CSK_ORGANIZATION_ID } from "../csk-entra";
 import { AutoLinkingOption } from "@zitadel/proto/zitadel/idp/v2/idp_pb";
 import crypto from "crypto";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -209,6 +210,136 @@ describe("processIDPCallback", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe("CSK Entra automatic registration", () => {
+    const params = {
+      ...defaultParams,
+      provider: "saml",
+      organization: CSK_ORGANIZATION_ID,
+    };
+    const prefix = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/";
+    const intent = {
+      idpInformation: {
+        idpId: CSK_ENTRA_PROVIDER_ID,
+        userId: "entra-subject",
+        userName: "pilot",
+        rawInformation: {
+          attributes: {
+            [prefix + "emailaddress"]: ["pilot@csklegal.com"],
+            [prefix + "givenname"]: ["Pilot"],
+            [prefix + "surname"]: ["User"],
+          },
+        },
+      },
+    };
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockRetrieveIDPIntent.mockResolvedValue(intent);
+      mockGetIDPByID.mockResolvedValue({
+        details: { resourceOwner: CSK_ORGANIZATION_ID },
+        config: {
+          options: {
+            isAutoCreation: true,
+            isAutoUpdate: true,
+            isCreationAllowed: true,
+          },
+        },
+      });
+      mockGetActiveIdentityProviders.mockResolvedValue({
+        identityProviders: [{ id: CSK_ENTRA_PROVIDER_ID }],
+      });
+      mockGetLoginSettings.mockResolvedValue({
+        allowExternalIdp: true,
+        allowRegister: true,
+      });
+      mockCreateUser.mockResolvedValue({ id: "new-csk-user" });
+    });
+    test("creates and links from the validated assertion then starts the session without a form", async () => {
+      expect(await processIDPCallback(params)).toEqual({
+        redirect: "https://app.example.com/success",
+      });
+      expect(mockCreateUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            organizationId: CSK_ORGANIZATION_ID,
+            username: "pilot@csklegal.com",
+            userType: {
+              case: "human",
+              value: expect.objectContaining({
+                idpLinks: [
+                  {
+                    idpId: CSK_ENTRA_PROVIDER_ID,
+                    userId: "entra-subject",
+                    userName: "pilot",
+                  },
+                ],
+              }),
+            },
+          }),
+        }),
+      );
+      expect(mockCreateNewSessionFromIdpIntent).toHaveBeenCalledWith(expect.objectContaining({ userId: "new-csk-user" }));
+    });
+    test("missing claims fail without manual registration or creating an account", async () => {
+      mockRetrieveIDPIntent.mockResolvedValue({
+        idpInformation: { ...intent.idpInformation, rawInformation: {} },
+      });
+      expect(await processIDPCallback(params)).toEqual({
+        error: CSK_ENTRA_ERROR,
+      });
+      expect(mockCreateUser).not.toHaveBeenCalled();
+      expect(mockCreateNewSessionFromIdpIntent).not.toHaveBeenCalled();
+    });
+    test("existing users are updated without creating duplicates", async () => {
+      mockRetrieveIDPIntent.mockResolvedValue({
+        ...intent,
+        userId: "existing-csk-user",
+      });
+      mockGetUserByID.mockResolvedValue({
+        user: { details: { resourceOwner: CSK_ORGANIZATION_ID } },
+      });
+      expect(await processIDPCallback(params)).toEqual({
+        redirect: "https://app.example.com/success",
+      });
+      expect(mockUpdateUser).toHaveBeenCalled();
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+    test("does not create users when automatic creation is disabled", async () => {
+      mockGetIDPByID.mockResolvedValue({
+        details: { resourceOwner: CSK_ORGANIZATION_ID },
+        config: { options: {} },
+      });
+      expect(await processIDPCallback(params)).toEqual({
+        error: CSK_ENTRA_ERROR,
+      });
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+    test("does not update or log in a linked user from another organization", async () => {
+      mockRetrieveIDPIntent.mockResolvedValue({
+        ...intent,
+        userId: "other-user",
+      });
+      mockGetUserByID.mockResolvedValue({
+        user: { details: { resourceOwner: "another-org" } },
+      });
+      expect(await processIDPCallback(params)).toEqual({
+        error: CSK_ENTRA_ERROR,
+      });
+      expect(mockUpdateUser).not.toHaveBeenCalled();
+      expect(mockCreateNewSessionFromIdpIntent).not.toHaveBeenCalled();
+    });
+    test("respects disabled external login", async () => {
+      mockGetLoginSettings.mockResolvedValue({
+        allowExternalIdp: false,
+        allowRegister: true,
+      });
+      expect(await processIDPCallback(params)).toEqual({
+        error: CSK_ENTRA_ERROR,
+      });
+      expect(mockCreateUser).not.toHaveBeenCalled();
+      expect(mockCreateNewSessionFromIdpIntent).not.toHaveBeenCalled();
+    });
   });
 
   describe("Parameter validation", () => {
