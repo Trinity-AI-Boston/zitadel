@@ -1,4 +1,5 @@
 import { createClientFor } from "@zitadel/client";
+import { ManagementService } from "@zitadel/proto/zitadel/management_pb";
 import { IdentityProviderService } from "@zitadel/proto/zitadel/idp/v2/idp_service_pb";
 import { OIDCService } from "@zitadel/proto/zitadel/oidc/v2/oidc_service_pb";
 import { OrganizationService } from "@zitadel/proto/zitadel/org/v2/org_service_pb";
@@ -11,6 +12,7 @@ import { hasLoginClientKey, hasServiceUserToken, hasSystemUserCredentials } from
 import { createServerTransport, ServiceConfig } from "./zitadel";
 
 type ServiceClass =
+  | typeof ManagementService
   | typeof IdentityProviderService
   | typeof UserService
   | typeof OrganizationService
@@ -41,7 +43,10 @@ export async function createServiceForHost<T extends ServiceClass>(service: T, s
     throw new Error("No service config found");
   }
 
-  const transport = createServerTransport(token, serviceConfig);
+  // The v1 Management API on ZITADEL v4.16 exposes gRPC-Web rather than Connect.
+  const transport = service === ManagementService
+    ? createServerTransport(token, serviceConfig, true)
+    : createServerTransport(token, serviceConfig);
 
   return createClientFor<T>(service)(transport);
 }
