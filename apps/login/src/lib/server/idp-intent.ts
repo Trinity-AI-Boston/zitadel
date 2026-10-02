@@ -819,6 +819,7 @@ export async function processIDPCallback({
     // CSK is provisioned exclusively from the server-validated Entra assertion.
     // Never fall back to a profile form, email auto-linking, or client-supplied names.
     if (isCskRegistration(organization, idpInformation.idpId)) {
+      let stage = "validate-provider";
       try {
         if (
           provider !== "saml" ||
@@ -839,6 +840,7 @@ export async function processIDPCallback({
         if (!settings?.allowExternalIdp || !active.identityProviders?.some((p) => p.id === CSK_ENTRA_PROVIDER_ID)) {
           throw new Error("CSK external login is disabled");
         }
+        stage = "read-entra-claims";
         const profile = readCskEntraProfile(idpInformation.idpId, organization, idpInformation.rawInformation);
         const groups = readCskGroups(idpInformation.rawInformation);
         const human = {
@@ -853,6 +855,7 @@ export async function processIDPCallback({
         };
         let userId = intent.userId;
         if (userId) {
+          stage = "update-linked-user";
           const existing = await getUserByID({ serviceConfig, userId });
           if (existing.user?.details?.resourceOwner !== CSK_ORGANIZATION_ID) {
             throw new Error("CSK user organization mismatch");
@@ -871,6 +874,7 @@ export async function processIDPCallback({
           if (!options?.isAutoCreation || !settings.allowRegister || !idpInformation.userId) {
             throw new Error("CSK automatic provisioning is unavailable");
           }
+          stage = "create-linked-user";
           const created = await createUser({
             serviceConfig,
             request: create(CreateUserRequestSchema, {
@@ -893,16 +897,21 @@ export async function processIDPCallback({
           });
           userId = created.id;
         }
+        stage = "sync-project-role";
         await syncCskDirectory(serviceConfig, userId, groups);
+        stage = "create-session";
         return await createNewSessionFromIdpIntent({
           userId,
           idpIntent: { idpIntentId: id, idpIntentToken: token },
           requestId,
           organization: CSK_ORGANIZATION_ID,
         });
-      } catch {
-        // Do not log the assertion, intent token, or personal profile values.
-        logger.error("CSK Entra automatic provisioning or session creation failed");
+      } catch (error) {
+        // Log only the stage and status, never claims, tokens or personal values.
+        logger.error("CSK Entra automatic provisioning or session creation failed", {
+          stage,
+          code: isClassifiedError(error) ? error.code : undefined,
+        });
         return { error: CSK_ENTRA_ERROR };
       }
     }
