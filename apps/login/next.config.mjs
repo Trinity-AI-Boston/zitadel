@@ -24,6 +24,7 @@ const secureHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  typescript: { tsconfigPath: "tsconfig.build.json" },
   basePath: process.env.NEXT_PUBLIC_BASE_PATH,
   output: process.env.NEXT_OUTPUT_MODE || undefined,
   reactStrictMode: true,

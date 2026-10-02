@@ -1,5 +1,13 @@
 import { describe, expect, test } from "vitest";
-import { CSK_ENTRA_PROVIDER_ID, CSK_ORGANIZATION_ID, isCskRegistration, readCskEntraProfile } from "./csk-entra";
+import {
+  CSK_ENTRA_PROVIDER_ID,
+  CSK_GROUP_CLAIM,
+  CSK_GROUP_ROLES,
+  CSK_ORGANIZATION_ID,
+  isCskRegistration,
+  readCskEntraProfile,
+  readCskGroups,
+} from "./csk-entra";
 
 const prefix = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/";
 const attributes = {
@@ -51,5 +59,20 @@ describe("CSK Entra provisioning", () => {
     expect(isCskRegistration(CSK_ORGANIZATION_ID, "other")).toBe(true);
     expect(isCskRegistration("other", CSK_ENTRA_PROVIDER_ID)).toBe(true);
     expect(isCskRegistration("other", "other")).toBe(false);
+  });
+});
+
+describe("CSK groups", () => {
+  test.each(Object.keys(CSK_GROUP_ROLES))("accepts configured group %s", (group) => {
+    expect(readCskGroups({ attributes: { [CSK_GROUP_CLAIM]: [group, group, "unrelated"] } })).toEqual([group]);
+  });
+  test.each([
+    undefined,
+    {},
+    { attributes: {} },
+    { attributes: { [CSK_GROUP_CLAIM]: "invalid" } },
+    { attributes: { [CSK_GROUP_CLAIM]: [123] } },
+  ])("does not grant access for missing or malformed groups", (raw) => {
+    expect(readCskGroups(raw)).toEqual([]);
   });
 });

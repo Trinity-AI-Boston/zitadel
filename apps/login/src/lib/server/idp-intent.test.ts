@@ -3,6 +3,9 @@ import { AutoLinkingOption } from "@zitadel/proto/zitadel/idp/v2/idp_pb";
 import crypto from "crypto";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { processIDPCallback } from "./idp-intent";
+import { syncCskDirectory } from "./csk-directory";
+
+vi.mock("./csk-directory", () => ({ syncCskDirectory: vi.fn() }));
 
 // Mock all the dependencies
 vi.mock("next/headers", () => ({
@@ -228,7 +231,8 @@ describe("processIDPCallback", () => {
           attributes: {
             [prefix + "emailaddress"]: ["pilot@csklegal.com"],
             [prefix + "givenname"]: ["Pilot"],
-            [prefix + "surname"]: ["User"],
+          [prefix + "surname"]: ["User"],
+          "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups": ["e2d0b62a-1511-46ef-b87a-10277ad10c4d"],
           },
         },
       },

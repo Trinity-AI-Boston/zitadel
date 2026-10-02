@@ -1,0 +1,11 @@
+.git
+**/node_modules
+**/.next
+.nx
+.artifacts
+**/.env
+**/.env.*
+**/*.pat
+**/*.key
+**/*.pem
+**/coverage

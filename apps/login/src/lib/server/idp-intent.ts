@@ -35,6 +35,8 @@ import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { getFingerprintIdCookie } from "../fingerprint";
 import { createNewSessionFromIdpIntent } from "./idp";
+import { readCskGroups } from "../csk-entra";
+import { syncCskDirectory } from "./csk-directory";
 
 const logger = createLogger("idp-intent");
 
@@ -838,6 +840,7 @@ export async function processIDPCallback({
           throw new Error("CSK external login is disabled");
         }
         const profile = readCskEntraProfile(idpInformation.idpId, organization, idpInformation.rawInformation);
+        const groups = readCskGroups(idpInformation.rawInformation);
         const human = {
           profile: {
             givenName: profile.givenName,
@@ -864,6 +867,7 @@ export async function processIDPCallback({
             });
           }
         } else {
+          if (groups.length !== 1) throw new Error("Exactly one CSK role group is required");
           if (!options?.isAutoCreation || !settings.allowRegister || !idpInformation.userId) {
             throw new Error("CSK automatic provisioning is unavailable");
           }
@@ -889,6 +893,7 @@ export async function processIDPCallback({
           });
           userId = created.id;
         }
+        await syncCskDirectory(serviceConfig, userId, groups);
         return await createNewSessionFromIdpIntent({
           userId,
           idpIntent: { idpIntentId: id, idpIntentToken: token },
