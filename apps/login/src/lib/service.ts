@@ -43,7 +43,10 @@ export async function createServiceForHost<T extends ServiceClass>(service: T, s
     throw new Error("No service config found");
   }
 
-  const transport = createServerTransport(token, serviceConfig);
+  // The v1 Management API on ZITADEL v4.16 exposes gRPC-Web rather than Connect.
+  const transport = service === ManagementService
+    ? createServerTransport(token, serviceConfig, true)
+    : createServerTransport(token, serviceConfig);
 
   return createClientFor<T>(service)(transport);
 }

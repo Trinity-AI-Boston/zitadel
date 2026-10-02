@@ -1,4 +1,4 @@
-import { createConnectTransport } from "@connectrpc/connect-node";
+import { createConnectTransport, createGrpcWebTransport } from "@connectrpc/connect-node";
 import { Client, create, Duration } from "@zitadel/client";
 import { makeReqCtx } from "@zitadel/client/v2";
 import { IdentityProviderService } from "@zitadel/proto/zitadel/idp/v2/idp_service_pb";
@@ -1371,7 +1371,7 @@ export type WithServiceConfig<T = {}> = T & {
   serviceConfig: ServiceConfig;
 };
 
-export function createServerTransport(token: string, serviceConfig: ServiceConfig) {
+export function createServerTransport(token: string, serviceConfig: ServiceConfig, legacyGrpcWeb = false) {
   const authorizationInterceptor: Interceptor = (next) => (req) => {
     if (!req.header.get("Authorization")) {
       req.header.set("Authorization", `Bearer ${token}`);
@@ -1397,7 +1397,8 @@ export function createServerTransport(token: string, serviceConfig: ServiceConfi
     return next(req);
   };
 
-  return createConnectTransport({
+  const createTransport = legacyGrpcWeb ? createGrpcWebTransport : createConnectTransport;
+  return createTransport({
     httpVersion: "1.1",
     baseUrl: serviceConfig.baseUrl,
     interceptors: [otelGrpcInterceptor, errorClassificationInterceptor, authorizationInterceptor, headerInterceptor],
