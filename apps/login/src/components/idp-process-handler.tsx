@@ -6,9 +6,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Alert } from "./alert";
 import { AutoSubmitForm } from "./auto-submit-form";
-import { Spinner } from "./spinner";
+import { CosmosBrand } from "@/lib/cosmos-brand";
+import { CosmosAuthLoader } from "./cosmos-auth-loader";
 
 type Props = {
+  cosmosBrand?: CosmosBrand;
+  restartUrl?: string;
   provider: string;
   id: string;
   token: string;
@@ -25,6 +28,8 @@ type Props = {
  * Must be client-side to allow cookie modifications via server actions.
  */
 export function IdpProcessHandler({
+  cosmosBrand,
+  restartUrl,
   provider,
   id,
   token,
@@ -71,7 +76,6 @@ export function IdpProcessHandler({
         }
 
         if (result.redirect) {
-          console.log("[IDP Process Handler] Redirecting to:", result.redirect);
           router.push(result.redirect);
           return;
         }
@@ -93,15 +97,13 @@ export function IdpProcessHandler({
       });
   }, [provider, id, token, requestId, organization, link, sessionId, linkFingerprint, postErrorRedirectUrl, router, t]);
 
+  if (loading) return <CosmosAuthLoader brand={cosmosBrand} />;
+  if (error && cosmosBrand)
+    return <CosmosAuthLoader brand={cosmosBrand} error="We could not finish signing you in. Please start again." restartUrl={restartUrl} />;
+
   return (
     <div className="flex items-center justify-center">
       {samlData && <AutoSubmitForm url={samlData.url} fields={samlData.fields} />}
-      {loading && (
-        <div className="flex flex-col items-center space-y-4">
-          <Spinner className="h-8 w-8" />
-          <p className="text-sm text-gray-700 dark:text-gray-300">{t("processing.message")}</p>
-        </div>
-      )}
       {error && (
         <div className="max-w-md py-4">
           <Alert>{error}</Alert>

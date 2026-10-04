@@ -1,7 +1,8 @@
 import { DynamicTheme } from "@/components/dynamic-theme";
 import { IdpProcessHandler } from "@/components/idp-process-handler";
 import { getServiceConfig } from "@/lib/service-url";
-import { getBrandingSettings, getDefaultOrg } from "@/lib/zitadel";
+import { getAuthRequest, getBrandingSettings, getDefaultOrg } from "@/lib/zitadel";
+import { cosmosBrandForCallback } from "@/lib/cosmos-brand";
 import { Organization } from "@zitadel/proto/zitadel/org/v2/org_pb";
 import { headers } from "next/headers";
 
@@ -27,6 +28,29 @@ export default async function ProcessPage(props: {
 
   const _headers = await headers();
   const { serviceConfig } = getServiceConfig(_headers);
+  const authRequest = requestId?.startsWith("oidc_")
+    ? await getAuthRequest({ serviceConfig, authRequestId: requestId.slice(5) }).catch(() => undefined)
+    : undefined;
+  const callbackUri = authRequest?.authRequest?.redirectUri;
+  const cosmosBrand = cosmosBrandForCallback(callbackUri);
+  const handler = (
+    <IdpProcessHandler
+      cosmosBrand={cosmosBrand}
+      restartUrl={cosmosBrand && callbackUri ? new URL("/login", callbackUri).toString() : undefined}
+      provider={provider}
+      id={id}
+      token={token}
+      requestId={requestId}
+      organization={organization}
+      link={link}
+      sessionId={linkToSessionId}
+      linkFingerprint={linkFingerprint}
+      postErrorRedirectUrl={postErrorRedirectUrl}
+    />
+  );
+
+  // The transition has its own root layout; do not render the login card first.
+  if (cosmosBrand) return handler;
 
   let defaultOrganization;
   if (!organization) {
@@ -38,19 +62,5 @@ export default async function ProcessPage(props: {
 
   const branding = await getBrandingSettings({ serviceConfig, organization: organization ?? defaultOrganization });
 
-  return (
-    <DynamicTheme branding={branding}>
-      <IdpProcessHandler
-        provider={provider}
-        id={id}
-        token={token}
-        requestId={requestId}
-        organization={organization}
-        link={link}
-        sessionId={linkToSessionId}
-        linkFingerprint={linkFingerprint}
-        postErrorRedirectUrl={postErrorRedirectUrl}
-      />
-    </DynamicTheme>
-  );
+  return <DynamicTheme branding={branding}>{handler}</DynamicTheme>;
 }

@@ -26,6 +26,7 @@ vi.mock("./host", () => ({
 }));
 
 vi.mock("../zitadel", () => ({
+  getAuthRequest: vi.fn(),
   startIdentityProviderFlow: vi.fn(),
 }));
 
@@ -270,6 +271,25 @@ describe("redirectToIdp", () => {
   });
 
   describe("General redirect behavior", () => {
+    test.each(["missing", "failed", "present"])("keeps existing Google SSO compatible when the optional login hint is %s", async (scenario) => {
+      const { getAuthRequest } = await import("../zitadel");
+      const lookup = vi.mocked(getAuthRequest);
+      if (scenario === "failed") lookup.mockRejectedValueOnce(new Error("Lookup unavailable"));
+      else lookup.mockResolvedValueOnce({ authRequest: { loginHint: scenario === "present" ? "person@example.com" : "" } } as any);
+
+      const original = "https://accounts.google.com/o/oauth2/v2/auth?state=opaque&prompt=consent&redirect_uri=https%3A%2F%2Fidentity.example.com%2Fcallback";
+      mockStartIdentityProviderFlow.mockResolvedValue({ url: original });
+      const formData = new FormData();
+      formData.set("id", "google-provider");
+      formData.set("provider", "google");
+      formData.set("requestId", "oidc_request");
+      const expected = new URL(original);
+      if (scenario === "present") expected.searchParams.set("login_hint", "person@example.com");
+
+      await expect(redirectToIdp(undefined, formData)).rejects.toThrow(`REDIRECT: ${expected.toString()}`);
+      expect(lookup).toHaveBeenCalledWith({ serviceConfig: { baseUrl: "https://api.example.com" }, authRequestId: "request" });
+    });
+
     test("should return error when IDP flow returns null", async () => {
       const formData = new FormData();
       formData.append("id", "idp123");
