@@ -1,4 +1,5 @@
 import { getValidLocaleFromUILocales } from "@/lib/auth-utils";
+import { withGoogleLoginHint } from "@/lib/cosmos-brand";
 import { isSafeRedirectUri } from "@/lib/client-utils";
 import { getLanguageCookie, setLanguageCookie } from "@/lib/cookies";
 
@@ -36,11 +37,7 @@ const ORG_SCOPE_REGEX = /urn:zitadel:iam:org:id:([0-9]+)/;
 const ORG_DOMAIN_SCOPE_REGEX = /urn:zitadel:iam:org:domain:primary:(.+)/;
 const IDP_SCOPE_REGEX = /urn:zitadel:iam:org:idp:id:(.+)/;
 
-function setCSPHeaders(
-  response: NextResponse,
-  serviceConfig: ServiceConfig,
-  securitySettings: SecuritySettings | undefined,
-): void {
+function setCSPHeaders(response: NextResponse, serviceConfig: ServiceConfig, securitySettings: SecuritySettings | undefined): void {
   const iframeOrigins =
     securitySettings?.embeddedIframe?.enabled && securitySettings.embeddedIframe.allowedOrigins.length > 0
       ? securitySettings.embeddedIframe.allowedOrigins
@@ -234,7 +231,7 @@ export async function handleOIDCFlowInitiation(params: FlowInitiationParams): Pr
       const idp = identityProviders.find((idp) => idp.id === idpId);
 
       if (idp) {
-        const identityProviderType = identityProviders[0].type;
+        const identityProviderType = idp.type;
 
         if (identityProviderType === IdentityProviderType.LDAP) {
           const ldapUrl = constructUrl(request, "/ldap");
@@ -297,7 +294,7 @@ export async function handleOIDCFlowInitiation(params: FlowInitiationParams): Pr
           url = constructUrl(request, url).toString();
         }
 
-        return NextResponse.redirect(url);
+        return NextResponse.redirect(provider === "google" ? withGoogleLoginHint(url, authRequest.loginHint) : url);
       }
     }
   }

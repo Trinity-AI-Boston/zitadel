@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  getAuthRequest,
   getLoginSettings,
   getUserByID,
   listAuthenticationMethodTypes,
@@ -18,10 +19,9 @@ import { getServiceConfig } from "../service-url";
 import { checkEmailVerification, checkMFAFactors } from "../verify-helper";
 import { createSessionForIdpAndUpdateCookie } from "./cookie";
 import { getPublicHost } from "./host";
+import { withGoogleLoginHint } from "../cosmos-brand";
 
-export type RedirectToIdpState =
-  | { error?: string | null; samlData?: { url: string; fields: Record<string, string> } }
-  | undefined;
+export type RedirectToIdpState = { error?: string | null; samlData?: { url: string; fields: Record<string, string> } } | undefined;
 
 export async function redirectToIdp(prevState: RedirectToIdpState, formData: FormData): Promise<RedirectToIdpState> {
   const _headers = await headers();
@@ -84,6 +84,11 @@ export async function redirectToIdp(prevState: RedirectToIdpState, formData: For
   }
 
   if (response && "redirect" in response && response?.redirect) {
+    if (provider === "google" && requestId?.startsWith("oidc_")) {
+      // An account-selection hint is optional; its lookup must not block SSO.
+      const result = await getAuthRequest({ serviceConfig, authRequestId: requestId.slice(5) }).catch(() => undefined);
+      redirect(withGoogleLoginHint(response.redirect, result?.authRequest?.loginHint));
+    }
     redirect(response.redirect);
   }
 
