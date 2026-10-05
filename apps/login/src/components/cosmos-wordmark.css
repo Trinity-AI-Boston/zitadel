@@ -1,0 +1,19 @@
+.cosmos-wordmark {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  color: #13283f;
+  white-space: nowrap;
+}
+.cosmos-wordmark--inverse {
+  color: #fff;
+}
+.cosmos-wordmark-one {
+  color: #d4b776;
+}
+.cosmos-wordmark sup {
+  font-family: Arial, sans-serif;
+  font-size: 0.32em;
+  line-height: 0;
+  vertical-align: super;
+  margin-left: 2px;
+}

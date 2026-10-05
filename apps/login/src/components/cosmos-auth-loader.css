@@ -11,11 +11,7 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: radial-gradient(
-    ellipse at 50% 35%,
-    #fff 0%,
-    var(--loader-surface) 70%
-  );
+  background: radial-gradient(ellipse at 50% 35%, #fff 0%, var(--loader-surface) 70%);
   color: var(--loader-ink);
   font:
     400 14px/1.6 Arial,
@@ -40,7 +36,7 @@
   text-align: center;
 }
 .cosmos-auth-logo {
-  height: 112px;
+  min-height: 152px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -49,6 +45,14 @@
   font:
     400 30px/1.2 Georgia,
     serif;
+}
+.cosmos-auth-logo .auth-client-brand {
+  margin: 0;
+  min-height: 152px;
+}
+.cosmos-auth-screen[data-brand="csk"] .auth-client-logo {
+  width: min(100%, 310px);
+  height: 100px;
 }
 .cosmos-auth-logo img {
   display: block;
@@ -161,4 +165,31 @@
   .cosmos-auth-screen .cosmos-auth-title {
     font-size: 24px;
   }
+}
+
+.auth-client-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 152px;
+  gap: 12px;
+  margin: 0 auto 44px;
+}
+.auth-client-logo {
+  width: 218px;
+  height: 110px;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+.auth-client-tagline {
+  margin: 0;
+  color: var(--auth-ink, var(--loader-ink, #13283f));
+  font-family: Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  text-align: center;
 }

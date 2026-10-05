@@ -4,7 +4,8 @@ import { cosmosBrandForCallback, withGoogleLoginHint } from "./cosmos-brand";
 describe("Cosmos login handoff", () => {
   it("only brands exact registered callbacks", () => {
     expect(cosmosBrandForCallback("http://localhost:3000/auth/callback")).toBe("cosmos");
-    expect(cosmosBrandForCallback("https://dev.cosmosone.ai/auth/callback")).toBe("cosmos");
+    expect(cosmosBrandForCallback("https://dev.cosmosone.ai/auth/callback")).toBe("trinity");
+    expect(cosmosBrandForCallback("https://csk.cosmosone.ai/auth/callback")).toBe("csk");
     expect(cosmosBrandForCallback("https://csk.dev.cosmosone.ai/auth/callback")).toBe("csk");
     expect(cosmosBrandForCallback("http://trinity.localhost:3000/auth/callback")).toBe("trinity");
     for (const uri of [
@@ -35,6 +36,8 @@ describe("Cosmos login handoff", () => {
       "https://accounts.google.com/other",
     ])
       expect(withGoogleLoginHint(uri, "person@csklegal.com")).toBe(uri);
-    expect(withGoogleLoginHint("https://accounts.google.com/o/oauth2/auth", "invalid")).toBe("https://accounts.google.com/o/oauth2/auth");
+    expect(withGoogleLoginHint("https://accounts.google.com/o/oauth2/auth", "invalid")).toBe(
+      "https://accounts.google.com/o/oauth2/auth",
+    );
   });
 });

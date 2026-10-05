@@ -16,7 +16,8 @@ beforeEach(() => vi.clearAllMocks());
 
 it.each([
   ["http://localhost:3000/auth/callback", "cosmos", "google"],
-  ["https://dev.cosmosone.ai/auth/callback", "cosmos", "google"],
+  ["https://dev.cosmosone.ai/auth/callback", "trinity", "google"],
+  ["https://csk.cosmosone.ai/auth/callback", "csk", "saml"],
   ["http://csk.localhost:3000/auth/callback", "csk", "saml"],
   ["https://csk.dev.cosmosone.ai/auth/callback", "csk", "saml"],
   ["http://trinity.localhost:3000/auth/callback", "trinity", "google"],
