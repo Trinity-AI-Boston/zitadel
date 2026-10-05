@@ -1,7 +1,6 @@
 "use client";
 
 import { processIDPCallback } from "@/lib/server/idp-intent";
-import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Alert } from "./alert";
@@ -10,6 +9,7 @@ import { CosmosBrand } from "@/lib/cosmos-brand";
 import { CosmosAuthLoader } from "./cosmos-auth-loader";
 
 type Props = {
+  messages?: { noRedirect: string; unexpectedError: string };
   cosmosBrand?: CosmosBrand;
   restartUrl?: string;
   provider: string;
@@ -28,6 +28,7 @@ type Props = {
  * Must be client-side to allow cookie modifications via server actions.
  */
 export function IdpProcessHandler({
+  messages,
   cosmosBrand,
   restartUrl,
   provider,
@@ -40,7 +41,8 @@ export function IdpProcessHandler({
   linkFingerprint,
   postErrorRedirectUrl,
 }: Props) {
-  const t = useTranslations("idp");
+  const noRedirect = messages?.noRedirect ?? "Could not finish signing you in. Please start again.";
+  const unexpectedError = messages?.unexpectedError ?? "An unexpected error occurred. Please start again.";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [samlData, setSamlData] = useState<{ url: string; fields: Record<string, string> } | null>(null);
@@ -87,15 +89,15 @@ export function IdpProcessHandler({
           return;
         }
 
-        setError(t("processing.noRedirect"));
+        setError(noRedirect);
         setLoading(false);
       })
       .catch((err) => {
         console.error("[IDP Process Handler] Unexpected error:", err);
-        setError(err instanceof Error ? err.message : t("processing.unexpectedError"));
+        setError(err instanceof Error ? err.message : unexpectedError);
         setLoading(false);
       });
-  }, [provider, id, token, requestId, organization, link, sessionId, linkFingerprint, postErrorRedirectUrl, router, t]);
+  }, [provider, id, token, requestId, organization, link, sessionId, linkFingerprint, postErrorRedirectUrl, router, noRedirect, unexpectedError]);
 
   if (loading) return <CosmosAuthLoader brand={cosmosBrand} />;
   if (error && cosmosBrand)

@@ -215,6 +215,19 @@ describe("processIDPCallback", () => {
     vi.restoreAllMocks();
   });
 
+  test("completes a valid sign-in without loading error translations", async () => {
+    const { getTranslations } = await import("next-intl/server");
+    expect(await processIDPCallback(defaultParams)).toEqual({ redirect: "https://app.example.com/success" });
+    expect(getTranslations).not.toHaveBeenCalled();
+  });
+
+  test("loads localized text when an error actually needs it", async () => {
+    const { getTranslations } = await import("next-intl/server");
+    mockGetIDPByID.mockResolvedValue(undefined);
+    expect(await processIDPCallback(defaultParams)).toEqual({ error: "errors.idpNotFound" });
+    expect(getTranslations).toHaveBeenCalledTimes(1);
+  });
+
   describe("CSK Entra automatic registration", () => {
     const params = {
       ...defaultParams,
@@ -284,6 +297,33 @@ describe("processIDPCallback", () => {
         }),
       );
       expect(mockCreateNewSessionFromIdpIntent).toHaveBeenCalledWith(expect.objectContaining({ userId: "new-csk-user" }));
+    });
+    test("overlaps CSK policy reads and waits for both before provisioning", async () => {
+      let finishSettings!: (value: unknown) => void;
+      let finishProviders!: (value: unknown) => void;
+      mockGetLoginSettings.mockReturnValue(new Promise(resolve => { finishSettings = resolve; }));
+      mockGetActiveIdentityProviders.mockReturnValue(new Promise(resolve => { finishProviders = resolve; }));
+      const result = processIDPCallback(params);
+      await vi.waitFor(() => expect(mockGetActiveIdentityProviders).toHaveBeenCalledWith(
+        expect.objectContaining({ orgId: CSK_ORGANIZATION_ID }),
+      ));
+      expect(mockGetLoginSettings).toHaveBeenCalledWith(expect.objectContaining({ organization: CSK_ORGANIZATION_ID }));
+      expect(mockCreateUser).not.toHaveBeenCalled();
+      finishSettings({ allowExternalIdp: true, allowRegister: true });
+      await Promise.resolve();
+      expect(mockCreateNewSessionFromIdpIntent).not.toHaveBeenCalled();
+      finishProviders({ identityProviders: [{ id: CSK_ENTRA_PROVIDER_ID }] });
+      expect(await result).toEqual({ redirect: "https://app.example.com/success" });
+      const { getTranslations } = await import("next-intl/server");
+      expect(getTranslations).not.toHaveBeenCalled();
+    });
+    test.each(["settings", "providers"])("fails closed when the CSK %s lookup fails", async (lookup) => {
+      (lookup === "settings" ? mockGetLoginSettings : mockGetActiveIdentityProviders).mockRejectedValue(new Error("unavailable"));
+      expect(await processIDPCallback(params)).toEqual({ error: CSK_ENTRA_ERROR });
+      expect(mockCreateUser).not.toHaveBeenCalled();
+      expect(mockUpdateUser).not.toHaveBeenCalled();
+      expect(syncCskDirectory).not.toHaveBeenCalled();
+      expect(mockCreateNewSessionFromIdpIntent).not.toHaveBeenCalled();
     });
     test("missing claims fail without manual registration or creating an account", async () => {
       mockRetrieveIDPIntent.mockResolvedValue({

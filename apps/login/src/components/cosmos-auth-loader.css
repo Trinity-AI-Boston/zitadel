@@ -21,6 +21,8 @@
     400 14px/1.6 Arial,
     sans-serif;
   color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 .cosmos-auth-screen[data-brand="csk"] {
   --loader-ink: #173c35;

@@ -159,15 +159,25 @@ export async function createNewSessionFromIdpIntent(command: CreateNewSessionCom
 
   const loginSettings = await getLoginSettings({ serviceConfig, organization: userResponse.user.details?.resourceOwner });
 
-  const session = await createSessionForIdpAndUpdateCookie({
-    userId: command.userId,
-    idpIntent: command.idpIntent,
-    requestId: command.requestId,
-    lifetime: loginSettings?.externalLoginCheckLifetime,
-  });
+  // The user has been resolved above. Read their MFA methods while creating the
+  // session; both results are required before verification and flow completion.
+  const [session, authenticationMethods] = await Promise.all([
+    createSessionForIdpAndUpdateCookie({
+      userId: command.userId,
+      idpIntent: command.idpIntent,
+      requestId: command.requestId,
+      lifetime: loginSettings?.externalLoginCheckLifetime,
+    }),
+    listAuthenticationMethodTypes({ serviceConfig, userId: command.userId }),
+  ]);
 
   if (!session || !session.factors?.user) {
     return { error: "Could not create session" };
+  }
+
+  // Do not use methods from a different identity if an invalid session is returned.
+  if (session.factors.user.id !== command.userId) {
+    return { error: "Session user does not match the requested user" };
   }
 
   const humanUser = userResponse.user.type.case === "human" ? userResponse.user.type.value : undefined;
@@ -179,14 +189,7 @@ export async function createNewSessionFromIdpIntent(command: CreateNewSessionCom
     return emailVerificationCheck;
   }
 
-  // check if user has MFA methods
-  let authMethods;
-  if (session.factors?.user?.id) {
-    const response = await listAuthenticationMethodTypes({ serviceConfig, userId: session.factors.user.id });
-    if (response.authMethodTypes && response.authMethodTypes.length) {
-      authMethods = response.authMethodTypes;
-    }
-  }
+  const authMethods = authenticationMethods.authMethodTypes;
 
   const mfaFactorCheck = await checkMFAFactors(
     serviceConfig,

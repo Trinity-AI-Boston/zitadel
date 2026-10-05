@@ -259,7 +259,7 @@ type IDPConfig = Awaited<ReturnType<typeof getIDPByID>>;
 
 interface IDPHandlerContext {
   serviceConfig: ServiceConfig;
-  t: (key: string) => string;
+  t: (key: string) => Promise<string>;
   intent: IDPIntentResult;
   idp: NonNullable<IDPConfig>;
   options: NonNullable<NonNullable<IDPConfig>["config"]>["options"];
@@ -423,10 +423,10 @@ async function handleExplicitLinking(ctx: IDPHandlerContext): Promise<IDPHandler
         return { samlData: sessionResult.samlData };
       }
 
-      return { error: t("errors.sessionCreationFailed") };
+      return { error: await t("errors.sessionCreationFailed") };
     } catch (error) {
       logger.error("Error linking IDP", { error });
-      const errorMessage = error instanceof Error ? error.message : t("errors.unknownError");
+      const errorMessage = error instanceof Error ? error.message : await t("errors.unknownError");
       let params = buildRedirectParams({ error: errorMessage });
       if (isClassifiedError(error) && error.code === Code.AlreadyExists) {
         params = buildRedirectParams({ error: "external_idp_taken" });
@@ -487,7 +487,7 @@ async function handleUserExists(ctx: IDPHandlerContext): Promise<IDPHandlerResul
       return { samlData: sessionResult.samlData };
     }
 
-    return { error: t("errors.sessionCreationFailed") };
+    return { error: await t("errors.sessionCreationFailed") };
   }
 
   return null;
@@ -580,10 +580,10 @@ async function handleAutoLinking(ctx: IDPHandlerContext): Promise<IDPHandlerResu
           return { samlData: sessionResult.samlData };
         }
 
-        return { error: t("errors.sessionCreationFailed") };
+        return { error: await t("errors.sessionCreationFailed") };
       } catch (error) {
         logger.error("Error auto-linking user", { error });
-        const errorMessage = error instanceof Error ? error.message : t("errors.unknownError");
+        const errorMessage = error instanceof Error ? error.message : await t("errors.unknownError");
         const params = buildRedirectParams({ error: errorMessage });
         return { redirect: `/idp/${provider}/linking-failed?${params}` };
       }
@@ -679,7 +679,7 @@ async function handleAutoCreation(ctx: IDPHandlerContext): Promise<IDPHandlerRes
         return { samlData: sessionResult.samlData };
       }
 
-      return { error: t("errors.sessionCreationFailed") };
+      return { error: await t("errors.sessionCreationFailed") };
     } catch (error: unknown) {
       logger.error("Error auto-creating user", { error });
       const params = buildRedirectParams();
@@ -780,7 +780,12 @@ export async function processIDPCallback({
   const _headers = await headers();
   const { serviceConfig } = getServiceConfig(_headers);
 
-  const t = await getTranslations("idp");
+  // Successful sign-ins do not need error translations or their settings lookups.
+  let translations: ReturnType<typeof getTranslations> | undefined;
+  const t = async (key: string): Promise<string> => {
+    translations ??= getTranslations("idp");
+    return (await translations)(key);
+  };
 
   // Validate required parameters
   if (!provider || !id || !token) {
@@ -811,7 +816,7 @@ export async function processIDPCallback({
     const idp = await getIDPByID({ serviceConfig, id: idpInformation.idpId });
 
     if (!idp) {
-      return { error: t("errors.idpNotFound") };
+      return { error: await t("errors.idpNotFound") };
     }
 
     const options = idp?.config?.options;
@@ -829,14 +834,12 @@ export async function processIDPCallback({
         ) {
           throw new Error("Invalid CSK provisioning context");
         }
-        const settings = await getLoginSettings({
-          serviceConfig,
-          organization: CSK_ORGANIZATION_ID,
-        });
-        const active = await getActiveIdentityProviders({
-          serviceConfig,
-          orgId: CSK_ORGANIZATION_ID,
-        });
+        // Independent policy reads can overlap. Both must succeed before any
+        // user provisioning, directory synchronization, or session creation.
+        const [settings, active] = await Promise.all([
+          getLoginSettings({ serviceConfig, organization: CSK_ORGANIZATION_ID }),
+          getActiveIdentityProviders({ serviceConfig, orgId: CSK_ORGANIZATION_ID }),
+        ]);
         if (!settings?.allowExternalIdp || !active.identityProviders?.some((p) => p.id === CSK_ENTRA_PROVIDER_ID)) {
           throw new Error("CSK external login is disabled");
         }
@@ -971,7 +974,7 @@ export async function processIDPCallback({
     }
 
     // Should theoretically be unreachable if handleNoUserFound covers the rest
-    return { error: t("errors.unknown") };
+    return { error: await t("errors.unknown") };
   } catch (error: unknown) {
     logger.error("Error processing intent", { error });
 
@@ -979,7 +982,7 @@ export async function processIDPCallback({
     if (requestId) errorParams.set("requestId", requestId);
     if (organization) errorParams.set("organization", organization);
     if (postErrorRedirectUrl) errorParams.set("postErrorRedirectUrl", postErrorRedirectUrl);
-    errorParams.set("error", error instanceof Error ? error.message : t("errors.unknownError"));
+    errorParams.set("error", error instanceof Error ? error.message : await t("errors.unknownError"));
 
     return { redirect: `/idp/${provider}/failure?${errorParams.toString()}` };
   }

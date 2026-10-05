@@ -1,5 +1,4 @@
 import "@/styles/globals.scss";
-import { LanguageProvider } from "@/components/language-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ReactNode } from "react";
 
@@ -16,7 +15,7 @@ export default function ProcessingLayout({
     <html lang="en" suppressHydrationWarning>
       <body style={{ margin: 0, background: "#fff" }}>
         <ThemeProvider>
-          <LanguageProvider>{children}</LanguageProvider>
+          {children}
         </ThemeProvider>
       </body>
     </html>
