@@ -1,0 +1,195 @@
+/* Keep identical in Cosmos frontend and ZITADEL login: the browser crosses origins during sign-in. */
+.cosmos-auth-screen {
+  --loader-ink: #13283f;
+  --loader-accent: #bb913f;
+  --loader-surface: #f6f7fa;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  box-sizing: border-box;
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(ellipse at 50% 35%, #fff 0%, var(--loader-surface) 70%);
+  color: var(--loader-ink);
+  font:
+    400 14px/1.6 Arial,
+    sans-serif;
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.cosmos-auth-screen[data-brand="csk"] {
+  --loader-ink: #173c35;
+  --loader-accent: #b18b4b;
+  --loader-surface: #f8f7f3;
+}
+.cosmos-auth-screen[data-brand="trinity"] {
+  --loader-ink: #102842;
+  --loader-accent: #2478c9;
+  --loader-surface: #f4f8fc;
+}
+.cosmos-auth-content {
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+}
+.cosmos-auth-logo {
+  min-height: 152px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 0 0 34px;
+  font:
+    400 30px/1.2 Georgia,
+    serif;
+}
+.cosmos-auth-logo .auth-client-brand {
+  margin: 0;
+  min-height: 152px;
+}
+.cosmos-auth-screen[data-brand="csk"] .auth-client-logo {
+  width: min(100%, 310px);
+  height: 100px;
+}
+.cosmos-auth-logo img {
+  display: block;
+  flex-shrink: 0;
+  object-fit: contain;
+  max-width: 100%;
+}
+.cosmos-auth-mark {
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+}
+.cosmos-auth-organization {
+  width: 218px;
+  height: 112px;
+}
+.cosmos-auth-screen[data-brand="csk"] .cosmos-auth-organization {
+  width: 310px;
+  height: 100px;
+}
+.cosmos-auth-motion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 30px;
+}
+.cosmos-auth-motion i {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--loader-accent);
+  animation: cosmos-auth-breathe 1.5s ease-in-out infinite;
+}
+.cosmos-auth-motion i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.cosmos-auth-motion i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.cosmos-auth-screen[data-brand="csk"] .cosmos-auth-motion i {
+  border-radius: 1px;
+  height: 20px;
+  width: 3px;
+}
+.cosmos-auth-screen .cosmos-auth-title {
+  color: var(--loader-ink);
+  font:
+    400 27px/1.3 Georgia,
+    serif;
+  margin: 22px 0 10px;
+  letter-spacing: normal;
+}
+.cosmos-auth-screen .cosmos-auth-description {
+  font:
+    400 14px/1.6 Arial,
+    sans-serif;
+  color: #667482;
+  margin: 0;
+}
+.cosmos-auth-screen .cosmos-auth-footer {
+  font:
+    400 11px/1.6 Arial,
+    sans-serif;
+  letter-spacing: 0.03em;
+  color: #71808b;
+  margin: 42px 0 0;
+}
+.cosmos-auth-retry {
+  display: inline-block;
+  border: 0;
+  border-radius: 8px;
+  margin-top: 24px;
+  padding: 12px 24px;
+  background: var(--loader-ink);
+  color: #fff;
+  font:
+    700 14px/1.6 Arial,
+    sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cosmos-auth-retry:focus-visible {
+  outline: 3px solid var(--loader-accent);
+  outline-offset: 3px;
+}
+@keyframes cosmos-auth-breathe {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cosmos-auth-motion i {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+@media (max-width: 380px) {
+  .cosmos-auth-logo {
+    font-size: 26px;
+    gap: 10px;
+  }
+  .cosmos-auth-screen .cosmos-auth-title {
+    font-size: 24px;
+  }
+}
+
+.auth-client-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 152px;
+  gap: 12px;
+  margin: 0 auto 44px;
+}
+.auth-client-logo {
+  width: 218px;
+  height: 110px;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+.auth-client-tagline {
+  margin: 0;
+  color: var(--auth-ink, var(--loader-ink, #13283f));
+  font-family: Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  text-align: center;
+}

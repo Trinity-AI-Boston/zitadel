@@ -5,6 +5,7 @@ import { getAuthRequest, getBrandingSettings, getDefaultOrg } from "@/lib/zitade
 import { cosmosBrandForCallback } from "@/lib/cosmos-brand";
 import { Organization } from "@zitadel/proto/zitadel/org/v2/org_pb";
 import { headers } from "next/headers";
+import { getTranslations } from "next-intl/server";
 
 /**
  * This page handles the initial IDP callback with the single-use token.
@@ -33,8 +34,11 @@ export default async function ProcessPage(props: {
     : undefined;
   const callbackUri = authRequest?.authRequest?.redirectUri;
   const cosmosBrand = cosmosBrandForCallback(callbackUri);
+  // Branded transitions use fixed copy; only other clients need translated errors.
+  const t = cosmosBrand ? undefined : await getTranslations("idp");
   const handler = (
     <IdpProcessHandler
+      messages={t ? { noRedirect: t("processing.noRedirect"), unexpectedError: t("processing.unexpectedError") } : undefined}
       cosmosBrand={cosmosBrand}
       restartUrl={cosmosBrand && callbackUri ? new URL("/login", callbackUri).toString() : undefined}
       provider={provider}

@@ -53,3 +53,37 @@ Verify `/ui/v2/login/healthy`, `/ui/v2/login/ready`, CSK registration redirects,
 and the separate CSK and Trinity authorization routes. Finally, perform a fresh
 Entra login with a real CSK pilot account and verify its role in Cosmos. Unit
 tests and API probes do not replace this last browser check.
+
+## Matching auth loaders and local testing (TRI-815)
+
+The Login UI processing page and Cosmos frontend use the same loader styles and
+assets for Cosmos, CSK and Trinity. The brand follows the registered OIDC callback;
+branding never grants organization access. Successful handoffs skip error
+translations. Session creation and MFA-method reads overlap, as do the independent
+CSK policy reads; all required checks still finish before continuing.
+
+For a local Login UI connected to the existing dev identity service, provide an
+authorized dev Login UI token in an owner-only file outside this repository. Set
+`ZITADEL_SERVICE_USER_TOKEN_FILE` to that file, then run from the repository root:
+
+```sh
+node apps/login/scripts/run-cosmos-local.mjs
+```
+
+In the frontend's ignored `.env.local`, set:
+
+```dotenv
+COSMOS_LOCAL_ZITADEL_UI=http://localhost:3001/ui/v2/login
+COSMOS_LOCAL_ZITADEL_ISSUER=https://dev-zitadel.cosmosone.ai
+```
+
+This override applies only in development on the supported localhost domains.
+The backend still validates state, nonce, PKCE and its callback allowlist. Branded
+callbacks also need registration on the ZITADEL client. Google/Entra and the dev
+identity API remain remote; only the Login UI runs on port 3001.
+
+Visual checks require no identity account: open
+`http://localhost:3001/ui/v2/login/dev/auth-loader?brand=csk` and the frontend's
+`http://csk.localhost:3000/dev/auth-loader?brand=csk`. Use `cosmos` or `trinity` for
+the other brands. Preview routes return 404 in production. Real SSO acceptance
+still requires an authorized account. Remove the temporary credential after testing.
