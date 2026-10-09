@@ -29,3 +29,10 @@ The old `csk` branch is no longer a deployment branch. Production checkouts foll
 Deployments are manual. Preserve each server's local configuration, identity issuer, callback registrations and database. Build images from the reviewed branch contents, back up the running release and database before rollout, apply any required backend migrations, then restart the relevant application or Login UI services.
 
 Hostnames choose the application's presentation: `dev.cosmosone.ai` uses Trinity branding and `csk.cosmosone.ai` uses CSK branding. The same source code supports both environments; environment credentials remain server-local.
+
+The Login UI pins its trusted CSK Entra provider using the server-only
+`CSK_ENTRA_PROVIDER_ID` environment variable. Development uses
+`393340902027821059` (the fallback); CSK production must set
+`CSK_ENTRA_PROVIDER_ID=393773493298135043` in the Login UI container's environment.
+Do not change Entra metadata, callback URLs or user roles to compensate for a
+provider mismatch. Provider ownership, activation and organization checks still apply.
