@@ -1,6 +1,6 @@
-// CSK DEV's explicitly trusted Entra SAML provider. Other providers retain their registration flow.
+// Pin the trusted provider for this deployment; never infer it from callback parameters.
 export const CSK_ORGANIZATION_ID = "393340147136987139";
-export const CSK_ENTRA_PROVIDER_ID = "393340902027821059";
+export const CSK_ENTRA_PROVIDER_ID = process.env.CSK_ENTRA_PROVIDER_ID?.trim() || "393340902027821059";
 export const COSMOS_PROJECT_ID = "385976020320124931";
 export const CSK_ENTRA_ERROR = "Microsoft sign-in could not be completed. Please contact Cosmos One support.";
 
