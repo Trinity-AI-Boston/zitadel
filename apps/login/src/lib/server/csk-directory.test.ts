@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from "vitest";
-import { COSMOS_PROJECT_ID, CSK_ORGANIZATION_ID } from "../csk-entra";
+import { COSMOS_PROJECT_ID, CSK_GROUP_ROLES, CSK_ORGANIZATION_ID } from "../csk-entra";
 import { createServiceForHost } from "../service";
 import { syncCskDirectory } from "./csk-directory";
 
@@ -60,6 +60,32 @@ test("creates the project assignment before publishing fresh group evidence", as
   expect(JSON.parse(new TextDecoder().decode(writes[0][0].value)).groups).toEqual([]);
   expect(JSON.parse(new TextDecoder().decode(writes[1][0].value)).groups).toEqual([group]);
   expect(api.addUserGrant.mock.invocationCallOrder[0]).toBeLessThan(api.setUserMetadata.mock.invocationCallOrder[1]);
+});
+
+test.each(Object.entries(CSK_GROUP_ROLES))("provisions the %s group as %s for a new user", async (roleGroup, role) => {
+  api.listGrantedProjects.mockResolvedValue({
+    result: [{ grantId: "project-grant", projectId: COSMOS_PROJECT_ID,
+      grantedOrgId: CSK_ORGANIZATION_ID, state: 1, grantedRoleKeys: Object.values(CSK_GROUP_ROLES) }],
+  });
+  await syncCskDirectory(config, "new-user", [roleGroup]);
+  expect(api.addUserGrant).toHaveBeenCalledWith(
+    { userId: "new-user", projectId: COSMOS_PROJECT_ID, projectGrantId: "project-grant", roleKeys: [role] },
+    expect.anything(),
+  );
+  expect(JSON.parse(new TextDecoder().decode(api.setUserMetadata.mock.calls.at(-1)?.[0].value)).groups).toEqual([roleGroup]);
+});
+
+test.each(Object.entries(CSK_GROUP_ROLES))("reconciles the %s group as %s for an existing user", async (roleGroup, role) => {
+  assignments = [{ ...assignment, roleKeys: ["old-role"] }];
+  api.listGrantedProjects.mockResolvedValue({
+    result: [{ grantId: "project-grant", projectId: COSMOS_PROJECT_ID,
+      grantedOrgId: CSK_ORGANIZATION_ID, state: 1, grantedRoleKeys: Object.values(CSK_GROUP_ROLES) }],
+  });
+  await syncCskDirectory(config, "existing-user", [roleGroup]);
+  expect(api.updateUserGrant).toHaveBeenCalledWith(
+    { userId: "existing-user", grantId: "assignment", roleKeys: [role] }, expect.anything(),
+  );
+  expect(api.addUserGrant).not.toHaveBeenCalled();
 });
 
 test("replaces an old role when Entra membership changes", async () => {

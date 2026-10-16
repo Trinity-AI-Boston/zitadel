@@ -349,6 +349,22 @@ describe("processIDPCallback", () => {
       expect(mockUpdateUser).toHaveBeenCalled();
       expect(mockCreateUser).not.toHaveBeenCalled();
     });
+    test.each([undefined, "existing-project-manager"])("accepts Project Manager membership for user %s", async (userId) => {
+      const group = "432f93c0-bbff-4e7d-870a-c16a6680efe3";
+      mockRetrieveIDPIntent.mockResolvedValue({
+        ...intent, userId,
+        idpInformation: { ...intent.idpInformation,
+          rawInformation: { attributes: { ...intent.idpInformation.rawInformation.attributes,
+            "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups": [group] } } },
+      });
+      mockGetUserByID.mockResolvedValue({ user: { details: { resourceOwner: CSK_ORGANIZATION_ID } } });
+      expect(await processIDPCallback(params)).toEqual({ redirect: "https://app.example.com/success" });
+      expect(syncCskDirectory).toHaveBeenCalledWith(expect.anything(), userId || "new-csk-user", [group]);
+      expect(mockCreateNewSessionFromIdpIntent).toHaveBeenCalledWith(expect.objectContaining({
+        userId: userId || "new-csk-user",
+      }));
+      if (userId) expect(mockCreateUser).not.toHaveBeenCalled();
+    });
     test("does not create users when automatic creation is disabled", async () => {
       mockGetIDPByID.mockResolvedValue({
         details: { resourceOwner: CSK_ORGANIZATION_ID },
