@@ -7,6 +7,7 @@ export const CSK_ENTRA_ERROR = "Microsoft sign-in could not be completed. Please
 const CLAIM_PREFIX = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/";
 export const CSK_GROUP_CLAIM = "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups";
 export const CSK_GROUP_ROLES: Record<string, string> = {
+  "432f93c0-bbff-4e7d-870a-c16a6680efe3": "project_manager",
   "467a0f7d-a139-4961-8290-761d75660d06": "associate",
   "7db93988-c905-4b4c-af7c-788af97adb1d": "managing_partner",
   "e2d0b62a-1511-46ef-b87a-10277ad10c4d": "paralegal",
